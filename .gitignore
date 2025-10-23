@@ -1,0 +1,37 @@
+# Folder Virtual Environment
+venv/
+.venv/
+env/
+
+# File environment (berisi kunci rahasia/API keys)
+.env
+.env.*
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# File Database
+# (Folder ini berisi database SQLite Anda)
+database/
+*.db
+*.sqlite3
+*.db-journal
+
+# File Upload Pengguna (SANGAT PENTING!)
+# (Folder ini berisi file terenkripsi dan terdekripsi)
+uploads/
+
+# Hasil Laporan Test Performa
+# (Dibuat oleh test_performance.py)
+test_results/
+
+# File spesifik OS & IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo

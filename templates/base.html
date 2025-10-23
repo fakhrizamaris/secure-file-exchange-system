@@ -1,60 +1,140 @@
 <!DOCTYPE html>
-<html lang="id">
-<head>
+<html lang="id" data-bs-theme="dark"> <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Secure File Exchange System{% endblock %}</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        /* Palet Warna Kustom Dark/Secure Theme */
+        :root {
+            --bs-primary: #0d6efd;       /* Biru Bootstrap */
+            --bs-body-bg: #0a0a0f;       /* Latar belakang sangat gelap */
+            --bs-body-color: #e9ecef;     /* Teks putih pudar */
+            --bs-card-bg: #1c1c22;       /* Warna kartu/panel */
+            --bs-border-color: #495057;  /* Warna border */
+            --bs-emphasis-color: #ffffff;  /* Teks yang lebih menonjol (putih) */
+        }
+
         body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background-color: var(--bs-body-bg);
+            color: var(--bs-body-color);
             min-height: 100vh;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
         }
+        
+        .container {
+            flex-grow: 1;
+        }
+
         .navbar {
-            background: rgba(255, 255, 255, 0.95) !important;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            background-color: var(--bs-card-bg) !important;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            border-bottom: 1px solid var(--bs-border-color);
         }
+
         .card {
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            border: none;
-            margin-top: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            border: 1px solid var(--bs-border-color);
+            background-color: var(--bs-card-bg);
+            /* --- EFEK HOVER BARU --- */
+            /* Menambahkan transisi yang mulus untuk efek hover */
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out, border-color 0.2s ease-in-out;
         }
+        
+        /* --- EFEK HOVER BARU --- */
+        .card:hover {
+            transform: translateY(-5px); /* Sedikit terangkat */
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3); /* Bayangan lebih jelas */
+            border-color: var(--bs-primary); /* Border highlight biru */
+        }
+
         .btn-custom {
             border-radius: 25px;
             padding: 10px 30px;
             font-weight: 600;
         }
-        .alert {
-            border-radius: 10px;
-            margin-top: 20px;
+        
+        /* Judul halaman (Dashboard, Analisis) */
+        .page-header {
+            color: var(--bs-emphasis-color);
+            font-weight: 600;
         }
-        footer {
-            background: rgba(0,0,0,0.3);
-            color: white;
-            padding: 20px 0;
-            margin-top: 50px;
-        }
+
+        /* Hero Section di index.html */
         .hero-section {
-            padding: 80px 0;
-            color: white;
+            padding: 60px 30px;
+            color: var(--bs-emphasis-color);
             text-align: center;
+            background-color: var(--bs-card-bg);
+            border-radius: 15px;
+            margin-top: 30px;
+            margin-bottom: 40px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            /* Terapkan transisi ke hero-section juga */
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out, border-color 0.2s ease-in-out;
+            border: 1px solid var(--bs-border-color);
         }
+        
+        /* --- EFEK HOVER BARU (untuk index.html) --- */
+        .hero-section:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.4);
+        }
+
         .feature-icon {
             font-size: 3rem;
-            color: #667eea;
+            color: var(--bs-primary);
             margin-bottom: 20px;
+        }
+        
+        footer {
+            background-color: var(--bs-card-bg);
+            color: var(--bs-body-color);
+            padding: 30px 0;
+            margin-top: 50px;
+            flex-shrink: 0;
+            border-top: 1px solid var(--bs-border-color);
+        }
+        
+        /* Kustomisasi agar elemen "light" terlihat bagus di dark mode */
+        .bg-light-dark-mode {
+            background-color: #2a2a30 !important;
+            color: var(--bs-body-color);
+        }
+        
+        /* --- EFEK HOVER BARU (untuk tabel) --- */
+        .table-hover > tbody > tr {
+            transition: background-color 0.15s ease-in-out; /* Transisi mulus untuk baris */
+        }
+        .table-hover > tbody > tr:hover > * {
+            background-color: #2c2c34; /* Warna hover sedikit lebih terang */
+            color: var(--bs-emphasis-color);
+        }
+        
+        .alert-info {
+            background-color: #0d2a4a;
+            color: #afe3ff;
+            border-color: #0d6efd;
+        }
+        
+        .alert-warning {
+            background-color: #4d3800;
+            color: #ffdead;
+            border-color: #ffc107;
         }
     </style>
     {% block extra_css %}{% endblock %}
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-light">
+    <nav class="navbar navbar-expand-lg navbar-dark">
         <div class="container">
             <a class="navbar-brand" href="{{ url_for('index') }}">
-                <i class="fas fa-shield-alt"></i> Secure File Exchange
+                <i class="fas fa-shield-alt text-primary"></i> 
+                <strong>Secure File Exchange</strong>
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
@@ -77,15 +157,16 @@
                                 <i class="fas fa-chart-bar"></i> Analisis
                             </a>
                         </li>
-                        <li class="nav-item">
-                            <span class="nav-link">
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="navbarUserDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 <i class="fas fa-user"></i> {{ current_user.username }}
-                            </span>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('logout') }}">
-                                <i class="fas fa-sign-out-alt"></i> Logout
                             </a>
+                            <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end" aria-labelledby="navbarUserDropdown"> <li>
+                                    <a class="dropdown-item" href="{{ url_for('logout') }}">
+                                        <i class="fas fa-sign-out-alt"></i> Logout
+                                    </a>
+                                </li>
+                            </ul>
                         </li>
                     {% else %}
                         <li class="nav-item">
@@ -94,7 +175,7 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('register') }}">
+                            <a class="nav-link btn btn-primary btn-sm text-white" href="{{ url_for('register') }}" style="border-radius: 20px; padding: 5px 15px;">
                                 <i class="fas fa-user-plus"></i> Register
                             </a>
                         </li>
@@ -108,10 +189,17 @@
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
-                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
+                    {% if category == 'success' %}
+                        <div class="alert alert-success alert-dismissible fade show" role="alert" style="background-color: #0a361e; color: #a3ffc3; border-color: #198754;">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endif %}
                 {% endfor %}
             {% endif %}
         {% endwith %}
@@ -121,11 +209,11 @@
 
     <footer class="text-center">
         <div class="container">
-            <p>&copy; 2025 Secure File Exchange System | Powered by Flask & Cryptography</p>
+            <p class="mb-0">&copy; 2025 Secure File Exchange System | Powered by Flask & Cryptography</p>
         </div>
     </footer>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>

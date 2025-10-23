@@ -20,7 +20,7 @@
 {% block content %}
 <div class="row mt-4 mb-4">
     <div class="col-12">
-        <h2 class="text-white mb-4">
+        <h2 class="page-header mb-4">
             <i class="fas fa-chart-bar"></i> Analisis Performa Algoritma Enkripsi
         </h2>
     </div>
@@ -34,7 +34,7 @@
     <div class="card-body p-0">
         <div class="table-responsive">
             <table class="table table-hover mb-0">
-                <thead class="table-light">
+                <thead class="table-dark">
                     <tr>
                         <th><i class="fas fa-shield-alt"></i> Algoritma</th>
                         <th><i class="fas fa-cog"></i> Mode</th>
@@ -120,7 +120,7 @@
         
         <div class="row mb-4">
             <div class="col-md-4">
-                <div class="p-3 bg-light rounded">
+                <div class="p-3 bg-light-dark-mode rounded">
                     <h6 class="text-success"><i class="fas fa-key"></i> AES-256</h6>
                     <ul class="small mb-0">
                         <li>Keamanan sangat tinggi (standar industri)</li>
@@ -132,7 +132,7 @@
                 </div>
             </div>
             <div class="col-md-4">
-                <div class="p-3 bg-light rounded">
+                <div class="p-3 bg-light-dark-mode rounded">
                     <h6 class="text-warning"><i class="fas fa-key"></i> DES</h6>
                     <ul class="small mb-0">
                         <li>Sederhana dan mudah dipahami</li>
@@ -144,7 +144,7 @@
                 </div>
             </div>
             <div class="col-md-4">
-                <div class="p-3 bg-light rounded">
+                <div class="p-3 bg-light-dark-mode rounded">
                     <h6 class="text-info"><i class="fas fa-key"></i> RC4</h6>
                     <ul class="small mb-0">
                         <li>Sangat cepat (stream cipher)</li>
@@ -160,7 +160,7 @@
         <h5><i class="fas fa-exclamation-triangle text-warning"></i> Kekurangan:</h5>
         <div class="row mb-4">
             <div class="col-md-4">
-                <div class="p-3 bg-light rounded">
+                <div class="p-3 bg-light-dark-mode rounded">
                     <h6 class="text-success"><i class="fas fa-key"></i> AES-256</h6>
                     <ul class="small mb-0">
                         <li>Membutuhkan resource lebih banyak</li>
@@ -171,7 +171,7 @@
                 </div>
             </div>
             <div class="col-md-4">
-                <div class="p-3 bg-light rounded">
+                <div class="p-3 bg-light-dark-mode rounded">
                     <h6 class="text-warning"><i class="fas fa-key"></i> DES</h6>
                     <ul class="small mb-0">
                         <li>Kunci terlalu pendek (64-bit)</li>
@@ -182,7 +182,7 @@
                 </div>
             </div>
             <div class="col-md-4">
-                <div class="p-3 bg-light rounded">
+                <div class="p-3 bg-light-dark-mode rounded">
                     <h6 class="text-info"><i class="fas fa-key"></i> RC4</h6>
                     <ul class="small mb-0">
                         <li>Ditemukan berbagai kelemahan</li>
@@ -247,14 +247,18 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
     // Data untuk chart
-    const algorithms = {{ stats|map(attribute=0)|list|tojson }};
-    const modes = {{ stats|map(attribute=1)|list|tojson }};
-    const encTimes = {{ stats|map(attribute=2)|list|tojson }};
-    const decTimes = {{ stats|map(attribute=3)|list|tojson }};
-    
+    const algorithms = JSON.parse('{{ stats|map(attribute=0)|list|tojson|safe }}');
+    const modes = JSON.parse('{{ stats|map(attribute=1)|list|tojson|safe }}');
+    const encTimes = JSON.parse('{{ stats|map(attribute=2)|list|tojson|safe }}');
+    const decTimes = JSON.parse('{{ stats|map(attribute=3)|list|tojson|safe }}');
+
     // Gabungkan label
     const labels = algorithms.map((algo, i) => algo + '-' + modes[i]);
-    
+
+    // Warna teks terang untuk dark mode
+    const textColor = '#e9ecef';
+    const gridColor = '#495057';
+
     // Create chart
     const ctx = document.getElementById('performanceChart').getContext('2d');
     new Chart(ctx, {
@@ -284,11 +288,15 @@
                     text: 'Perbandingan Waktu Enkripsi & Dekripsi',
                     font: {
                         size: 16
-                    }
+                    },
+                    color: textColor // Warna judul
                 },
                 legend: {
                     display: true,
-                    position: 'top'
+                    position: 'top',
+                    labels: {
+                        color: textColor // Warna label legenda
+                    }
                 }
             },
             scales: {
@@ -296,13 +304,27 @@
                     beginAtZero: true,
                     title: {
                         display: true,
-                        text: 'Waktu (ms)'
+                        text: 'Waktu (ms)',
+                        color: textColor // Warna label Y
+                    },
+                    ticks: {
+                        color: textColor // Warna angka Y
+                    },
+                    grid: {
+                        color: gridColor // Warna grid Y
                     }
                 },
                 x: {
                     title: {
                         display: true,
-                        text: 'Algoritma - Mode'
+                        text: 'Algoritma - Mode',
+                        color: textColor // Warna label X
+                    },
+                    ticks: {
+                        color: textColor // Warna angka X
+                    },
+                    grid: {
+                        color: gridColor // Warna grid X
                     }
                 }
             }
