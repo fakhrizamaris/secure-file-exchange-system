@@ -1,209 +1,61 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, send_file, jsonify
-from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
-from werkzeug.security import generate_password_hash, check_password_hash
+# app.py
+# (VERSI REFACTORING - Bersih, Aman, dan Menggunakan Modul)
+
+from flask import (
+    Flask, render_template, request, redirect, url_for, flash, 
+    send_file, jsonify
+)
+from flask_login import (
+    LoginManager, UserMixin, login_user, logout_user, 
+    login_required, current_user
+)
 from werkzeug.utils import secure_filename
-import sqlite3
 import os
-import time
-from datetime import datetime
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from cryptography.hazmat.backends import default_backend
-from Crypto.Cipher import ARC4, DES
 import secrets
 import io
+from sqlalchemy import func
 
+# Impor dari file proyek Anda
+from config import config
+from models import db, User, File, Log
+from encryption import EncryptionHandler
+
+# Tentukan environment (default 'development')
+env = os.environ.get('FLASK_ENV', 'default')
+
+# Inisialisasi Aplikasi
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'kunci-rahasia-anda-ganti-ini'
-app.config['UPLOAD_FOLDER'] = 'uploads/encrypted'
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max
+app.config.from_object(config[env])
 
-ALLOWED_EXTENSIONS = {'xlsx', 'xls', 'jpg', 'jpeg', 'png', 'pdf'}
-
-# Setup Flask-Login
+# Inisialisasi Database & Login Manager
+db.init_app(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
+login_manager.login_message = 'Silakan login untuk mengakses halaman ini.'
+login_manager.login_message_category = 'warning'
 
-# Buat folder jika belum ada
-os.makedirs('uploads/encrypted', exist_ok=True)
-os.makedirs('uploads/decrypted', exist_ok=True)
-os.makedirs('database', exist_ok=True)
-
-# Database Setup
-def init_db():
-    conn = sqlite3.connect('database/secure_files.db')
-    c = conn.cursor()
-    
-    # Tabel Users
-    c.execute('''CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )''')
-    
-    # Tabel Files
-    c.execute('''CREATE TABLE IF NOT EXISTS files (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        original_filename TEXT NOT NULL,
-        encrypted_filename TEXT NOT NULL,
-        algorithm TEXT NOT NULL,
-        mode TEXT NOT NULL,
-        original_size INTEGER,
-        encrypted_size INTEGER,
-        encryption_time REAL,
-        decryption_time REAL,
-        upload_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users (id)
-    )''')
-    
-    # Tabel Logs
-    c.execute('''CREATE TABLE IF NOT EXISTS logs (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER,
-        action TEXT,
-        details TEXT,
-        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users (id)
-    )''')
-    
-    conn.commit()
-    conn.close()
-
-# User Class untuk Flask-Login
-class User(UserMixin):
-    def __init__(self, id, username):
-        self.id = id
-        self.username = username
 
 @login_manager.user_loader
 def load_user(user_id):
-    conn = sqlite3.connect('database/secure_files.db')
-    c = conn.cursor()
-    c.execute('SELECT id, username FROM users WHERE id = ?', (user_id,))
-    user = c.fetchone()
-    conn.close()
-    if user:
-        return User(user[0], user[1])
-    return None
+    # Menggunakan SQLAlchemy (models.py)
+    return User.query.get(int(user_id))
 
 def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
-# Fungsi Enkripsi
-def encrypt_file_aes(data, mode_name='CBC'):
-    key = secrets.token_bytes(32)  # AES-256
-    
-    if mode_name == 'CBC':
-        iv = secrets.token_bytes(16)
-        cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=default_backend())
-        # Padding untuk CBC
-        padding_length = 16 - (len(data) % 16)
-        data = data + bytes([padding_length] * padding_length)
-        encrypted_data = iv + cipher.encryptor().update(data)
-    elif mode_name == 'CTR':
-        nonce = secrets.token_bytes(16)
-        cipher = Cipher(algorithms.AES(key), modes.CTR(nonce), backend=default_backend())
-        encrypted_data = nonce + cipher.encryptor().update(data)
-    elif mode_name == 'CFB':
-        iv = secrets.token_bytes(16)
-        cipher = Cipher(algorithms.AES(key), modes.CFB(iv), backend=default_backend())
-        encrypted_data = iv + cipher.encryptor().update(data)
-    else:  # OFB
-        iv = secrets.token_bytes(16)
-        cipher = Cipher(algorithms.AES(key), modes.OFB(iv), backend=default_backend())
-        encrypted_data = iv + cipher.encryptor().update(data)
-    
-    return encrypted_data, key
+# --- Routes ---
 
-def decrypt_file_aes(encrypted_data, key, mode_name='CBC'):
-    if mode_name == 'CBC':
-        iv = encrypted_data[:16]
-        ciphertext = encrypted_data[16:]
-        cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=default_backend())
-        decrypted = cipher.decryptor().update(ciphertext)
-        # Remove padding
-        padding_length = decrypted[-1]
-        decrypted = decrypted[:-padding_length]
-    elif mode_name == 'CTR':
-        nonce = encrypted_data[:16]
-        ciphertext = encrypted_data[16:]
-        cipher = Cipher(algorithms.AES(key), modes.CTR(nonce), backend=default_backend())
-        decrypted = cipher.decryptor().update(ciphertext)
-    elif mode_name == 'CFB':
-        iv = encrypted_data[:16]
-        ciphertext = encrypted_data[16:]
-        cipher = Cipher(algorithms.AES(key), modes.CFB(iv), backend=default_backend())
-        decrypted = cipher.decryptor().update(ciphertext)
-    else:  # OFB
-        iv = encrypted_data[:16]
-        ciphertext = encrypted_data[16:]
-        cipher = Cipher(algorithms.AES(key), modes.OFB(iv), backend=default_backend())
-        decrypted = cipher.decryptor().update(ciphertext)
-    
-    return decrypted
-
-def encrypt_file_des(data, mode_name='CBC'):
-    key = secrets.token_bytes(8)  # DES key 8 bytes
-    
-    if mode_name == 'CBC':
-        iv = secrets.token_bytes(8)
-        cipher = DES.new(key, DES.MODE_CBC, iv)
-        # Padding untuk DES (8 bytes block)
-        padding_length = 8 - (len(data) % 8)
-        data = data + bytes([padding_length] * padding_length)
-        encrypted_data = iv + cipher.encrypt(data)
-    elif mode_name == 'CFB':
-        iv = secrets.token_bytes(8)
-        cipher = DES.new(key, DES.MODE_CFB, iv)
-        encrypted_data = iv + cipher.encrypt(data)
-    else:  # OFB
-        iv = secrets.token_bytes(8)
-        cipher = DES.new(key, DES.MODE_OFB, iv)
-        encrypted_data = iv + cipher.encrypt(data)
-    
-    return encrypted_data, key
-
-def decrypt_file_des(encrypted_data, key, mode_name='CBC'):
-    if mode_name == 'CBC':
-        iv = encrypted_data[:8]
-        ciphertext = encrypted_data[8:]
-        cipher = DES.new(key, DES.MODE_CBC, iv)
-        decrypted = cipher.decrypt(ciphertext)
-        padding_length = decrypted[-1]
-        decrypted = decrypted[:-padding_length]
-    elif mode_name == 'CFB':
-        iv = encrypted_data[:8]
-        ciphertext = encrypted_data[8:]
-        cipher = DES.new(key, DES.MODE_CFB, iv)
-        decrypted = cipher.decrypt(ciphertext)
-    else:  # OFB
-        iv = encrypted_data[:8]
-        ciphertext = encrypted_data[8:]
-        cipher = DES.new(key, DES.MODE_OFB, iv)
-        decrypted = cipher.decrypt(ciphertext)
-    
-    return decrypted
-
-def encrypt_file_rc4(data):
-    key = secrets.token_bytes(16)  # RC4 key
-    cipher = ARC4.new(key)
-    encrypted_data = cipher.encrypt(data)
-    return encrypted_data, key
-
-def decrypt_file_rc4(encrypted_data, key):
-    cipher = ARC4.new(key)
-    decrypted = cipher.decrypt(encrypted_data)
-    return decrypted
-
-# Routes
 @app.route('/')
 def index():
     return render_template('index.html')
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+        
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
@@ -211,53 +63,82 @@ def register():
         if len(username) < 3:
             flash('Username minimal 3 karakter', 'danger')
             return redirect(url_for('register'))
-        
         if len(password) < 6:
             flash('Password minimal 6 karakter', 'danger')
             return redirect(url_for('register'))
         
-        hashed_password = generate_password_hash(password)
-        
-        try:
-            conn = sqlite3.connect('database/secure_files.db')
-            c = conn.cursor()
-            c.execute('INSERT INTO users (username, password) VALUES (?, ?)', 
-                     (username, hashed_password))
-            conn.commit()
-            conn.close()
-            flash('Registrasi berhasil! Silakan login.', 'success')
-            return redirect(url_for('login'))
-        except sqlite3.IntegrityError:
+        # Cek jika user sudah ada (menggunakan SQLAlchemy)
+        existing_user = User.query.filter_by(username=username).first()
+        if existing_user:
             flash('Username sudah digunakan', 'danger')
             return redirect(url_for('register'))
-    
+        
+        # Buat user baru (menggunakan models.py)
+        new_user = User(username=username)
+        new_user.set_password(password)
+        
+        try:
+            db.session.add(new_user)
+            db.session.commit()
+            
+            # Log registrasi
+            Log.log_action(
+                user_id=new_user.id, 
+                action='REGISTER', 
+                details=f'User {username} registered.',
+                ip_address=request.remote_addr
+            )
+            
+            flash('Registrasi berhasil! Silakan login.', 'success')
+            return redirect(url_for('login'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Terjadi kesalahan: {e}', 'danger')
+            
     return render_template('register.html')
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
         
-        conn = sqlite3.connect('database/secure_files.db')
-        c = conn.cursor()
-        c.execute('SELECT id, username, password FROM users WHERE username = ?', (username,))
-        user = c.fetchone()
-        conn.close()
+        # Cek user (menggunakan SQLAlchemy)
+        user = User.query.filter_by(username=username).first()
         
-        if user and check_password_hash(user[2], password):
-            user_obj = User(user[0], user[1])
-            login_user(user_obj)
+        # Cek password (menggunakan models.py)
+        if user and user.check_password(password):
+            login_user(user)
+            
+            # Log login
+            Log.log_action(
+                user_id=user.id, 
+                action='LOGIN', 
+                details=f'User {username} logged in.',
+                ip_address=request.remote_addr
+            )
+            
             flash('Login berhasil!', 'success')
             return redirect(url_for('dashboard'))
         else:
             flash('Username atau password salah', 'danger')
-    
+            
     return render_template('login.html')
 
 @app.route('/logout')
 @login_required
 def logout():
+    # Log logout
+    Log.log_action(
+        user_id=current_user.id, 
+        action='LOGOUT', 
+        details=f'User {current_user.username} logged out.',
+        ip_address=request.remote_addr
+    )
+    
     logout_user()
     flash('Logout berhasil', 'info')
     return redirect(url_for('index'))
@@ -265,16 +146,18 @@ def logout():
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    conn = sqlite3.connect('database/secure_files.db')
-    c = conn.cursor()
-    c.execute('''SELECT id, original_filename, algorithm, mode, original_size, 
-                 encrypted_size, encryption_time, upload_date 
-                 FROM files WHERE user_id = ? ORDER BY upload_date DESC''', 
-              (current_user.id,))
-    files = c.fetchall()
-    conn.close()
+    # Mengambil data file milik user (menggunakan SQLAlchemy)
+    files = File.query.filter_by(user_id=current_user.id).order_by(File.upload_date.desc()).all()
     
-    return render_template('dashboard.html', files=files)
+    # Konversi ke format list tuple agar kompatibel dengan template Anda
+    file_list = [
+        (
+            f.id, f.original_filename, f.algorithm, f.mode, 
+            f.original_size, f.encrypted_size, f.encryption_time, 
+            f.upload_date.strftime('%Y-%m-%d %H:%M')
+        ) for f in files
+    ]
+    return render_template('dashboard.html', files=file_list)
 
 @app.route('/upload', methods=['GET', 'POST'])
 @login_required
@@ -297,44 +180,52 @@ def upload():
             file_data = file.read()
             original_size = len(file_data)
             
-            # Enkripsi file
-            start_time = time.time()
-            
-            if algorithm == 'AES':
-                encrypted_data, key = encrypt_file_aes(file_data, mode)
-            elif algorithm == 'DES':
-                encrypted_data, key = encrypt_file_des(file_data, mode)
-            else:  # RC4
-                encrypted_data, key = encrypt_file_rc4(file_data)
-                mode = 'Stream'
-            
-            encryption_time = (time.time() - start_time) * 1000  # ms
-            
-            # Simpan file terenkripsi
-            encrypted_filename = f"{secrets.token_hex(8)}_{original_filename}.enc"
-            encrypted_path = os.path.join(app.config['UPLOAD_FOLDER'], encrypted_filename)
-            
-            # Simpan encrypted data dan key dalam satu file
-            with open(encrypted_path, 'wb') as f:
-                f.write(len(key).to_bytes(4, 'big'))  # simpan panjang key
-                f.write(key)  # simpan key
-                f.write(encrypted_data)  # simpan data terenkripsi
-            
-            encrypted_size = len(encrypted_data)
-            
-            # Simpan metadata ke database
-            conn = sqlite3.connect('database/secure_files.db')
-            c = conn.cursor()
-            c.execute('''INSERT INTO files (user_id, original_filename, encrypted_filename,
-                        algorithm, mode, original_size, encrypted_size, encryption_time)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
-                     (current_user.id, original_filename, encrypted_filename, 
-                      algorithm, mode, original_size, encrypted_size, encryption_time))
-            conn.commit()
-            conn.close()
-            
-            flash(f'File berhasil dienkripsi dengan {algorithm} ({mode})! Waktu: {encryption_time:.2f}ms', 'success')
-            return redirect(url_for('dashboard'))
+            try:
+                # Enkripsi file (menggunakan encryption.py)
+                encrypted_data, key, enc_time, mode = EncryptionHandler.encrypt_file(
+                    file_data, algorithm, mode
+                )
+                
+                encrypted_size = len(encrypted_data)
+                
+                # Simpan file terenkripsi
+                encrypted_filename = f"{secrets.token_hex(8)}_{original_filename}.enc"
+                encrypted_path = os.path.join(app.config['UPLOAD_FOLDER'], encrypted_filename)
+                
+                with open(encrypted_path, 'wb') as f:
+                    f.write(encrypted_data) # Hanya simpan data, kunci disimpan di DB
+                
+                # Simpan metadata ke database (menggunakan SQLAlchemy)
+                new_file = File(
+                    user_id=current_user.id,
+                    original_filename=original_filename,
+                    encrypted_filename=encrypted_filename,
+                    algorithm=algorithm,
+                    mode=mode,
+                    key=key,  # Simpan kunci di database
+                    original_size=original_size,
+                    encrypted_size=encrypted_size,
+                    encryption_time=enc_time
+                )
+                
+                db.session.add(new_file)
+                db.session.commit()
+                
+                # Log upload
+                Log.log_action(
+                    user_id=current_user.id, 
+                    action='UPLOAD', 
+                    details=f'File {original_filename} uploaded with {algorithm}-{mode}.',
+                    ip_address=request.remote_addr
+                )
+                
+                flash(f'File berhasil dienkripsi dengan {algorithm} ({mode})! Waktu: {enc_time:.2f}ms', 'success')
+                return redirect(url_for('dashboard'))
+
+            except Exception as e:
+                db.session.rollback()
+                flash(f'Terjadi kesalahan saat enkripsi: {e}', 'danger')
+        
         else:
             flash('Format file tidak diizinkan', 'danger')
     
@@ -343,89 +234,115 @@ def upload():
 @app.route('/download/<int:file_id>')
 @login_required
 def download(file_id):
-    conn = sqlite3.connect('database/secure_files.db')
-    c = conn.cursor()
-    c.execute('''SELECT original_filename, encrypted_filename, algorithm, mode 
-                 FROM files WHERE id = ? AND user_id = ?''', (file_id, current_user.id))
-    file_info = c.fetchone()
+    # Ambil info file dari DB (menggunakan SQLAlchemy)
+    file_info = File.query.filter_by(id=file_id, user_id=current_user.id).first()
     
     if not file_info:
         flash('File tidak ditemukan', 'danger')
         return redirect(url_for('dashboard'))
     
-    original_filename, encrypted_filename, algorithm, mode = file_info
-    encrypted_path = os.path.join(app.config['UPLOAD_FOLDER'], encrypted_filename)
+    encrypted_path = os.path.join(app.config['UPLOAD_FOLDER'], file_info.encrypted_filename)
     
-    # Baca file terenkripsi dan key
-    with open(encrypted_path, 'rb') as f:
-        key_length = int.from_bytes(f.read(4), 'big')
-        key = f.read(key_length)
-        encrypted_data = f.read()
-    
-    # Dekripsi file
-    start_time = time.time()
-    
-    if algorithm == 'AES':
-        decrypted_data = decrypt_file_aes(encrypted_data, key, mode)
-    elif algorithm == 'DES':
-        decrypted_data = decrypt_file_des(encrypted_data, key, mode)
-    else:  # RC4
-        decrypted_data = decrypt_file_rc4(encrypted_data, key)
-    
-    decryption_time = (time.time() - start_time) * 1000  # ms
-    
-    # Update waktu dekripsi di database
-    c.execute('UPDATE files SET decryption_time = ? WHERE id = ?', 
-             (decryption_time, file_id))
-    conn.commit()
-    conn.close()
-    
-    return send_file(
-        io.BytesIO(decrypted_data),
-        as_attachment=True,
-        download_name=original_filename
-    )
-
-@app.route('/analytics')
-@login_required
-def analytics():
-    conn = sqlite3.connect('database/secure_files.db')
-    c = conn.cursor()
-    c.execute('''SELECT algorithm, mode, AVG(encryption_time) as avg_enc, 
-                 AVG(decryption_time) as avg_dec, AVG(encrypted_size) as avg_size,
-                 COUNT(*) as count
-                 FROM files WHERE user_id = ?
-                 GROUP BY algorithm, mode''', (current_user.id,))
-    stats = c.fetchall()
-    conn.close()
-    
-    return render_template('analytics.html', stats=stats)
+    try:
+        # Baca file terenkripsi
+        with open(encrypted_path, 'rb') as f:
+            encrypted_data = f.read()
+        
+        # Ambil kunci dari database
+        key = file_info.key
+        
+        # Dekripsi file (menggunakan encryption.py)
+        decrypted_data, dec_time = EncryptionHandler.decrypt_file(
+            encrypted_data, key, file_info.algorithm, file_info.mode
+        )
+        
+        # Update waktu dekripsi di database
+        file_info.decryption_time = dec_time
+        db.session.commit()
+        
+        # Log download
+        Log.log_action(
+            user_id=current_user.id, 
+            action='DOWNLOAD', 
+            details=f'File {file_info.original_filename} downloaded.',
+            ip_address=request.remote_addr
+        )
+        
+        return send_file(
+            io.BytesIO(decrypted_data),
+            as_attachment=True,
+            download_name=file_info.original_filename
+        )
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Gagal mendekripsi file: {e}', 'danger')
+        Log.log_action(
+            user_id=current_user.id, 
+            action='DOWNLOAD', 
+            details=f'Failed to download {file_info.original_filename}. Error: {e}',
+            ip_address=request.remote_addr,
+            status='FAILED'
+        )
+        return redirect(url_for('dashboard'))
 
 @app.route('/delete/<int:file_id>', methods=['POST'])
 @login_required
 def delete_file(file_id):
-    conn = sqlite3.connect('database/secure_files.db')
-    c = conn.cursor()
-    c.execute('SELECT encrypted_filename FROM files WHERE id = ? AND user_id = ?', 
-             (file_id, current_user.id))
-    file_info = c.fetchone()
+    file_info = File.query.filter_by(id=file_id, user_id=current_user.id).first()
     
     if file_info:
-        encrypted_filename = file_info[0]
-        encrypted_path = os.path.join(app.config['UPLOAD_FOLDER'], encrypted_filename)
-        
-        if os.path.exists(encrypted_path):
-            os.remove(encrypted_path)
-        
-        c.execute('DELETE FROM files WHERE id = ?', (file_id,))
-        conn.commit()
-        flash('File berhasil dihapus', 'success')
+        try:
+            encrypted_path = os.path.join(app.config['UPLOAD_FOLDER'], file_info.encrypted_filename)
+            
+            # Hapus file fisik
+            if os.path.exists(encrypted_path):
+                os.remove(encrypted_path)
+            
+            # Hapus entry dari database
+            db.session.delete(file_info)
+            db.session.commit()
+            
+            # Log penghapusan
+            Log.log_action(
+                user_id=current_user.id, 
+                action='DELETE', 
+                details=f'File {file_info.original_filename} deleted.',
+                ip_address=request.remote_addr
+            )
+            flash('File berhasil dihapus', 'success')
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Gagal menghapus file: {e}', 'danger')
     else:
         flash('File tidak ditemukan', 'danger')
     
-    conn.close()
     return redirect(url_for('dashboard'))
 
+@app.route('/analytics')
+@login_required
+def analytics():
+    # Query analisis (menggunakan SQLAlchemy)
+    stats = db.session.query(
+        File.algorithm,
+        File.mode,
+        func.avg(File.encryption_time),
+        func.avg(File.decryption_time),
+        func.avg(File.encrypted_size),
+        func.count(File.id)
+    ).filter_by(user_id=current_user.id).group_by(File.algorithm, File.mode).all()
+    
+    return render_template('analytics.html', stats=stats)
+
+
+# Perintah untuk inisialisasi database
+@app.shell_context_processor
+def make_shell_context():
+    return {'db': db, 'User': User, 'File': File, 'Log': Log}
+
 if __name__ == '__main__':
-    init_db()
-    app.run(debug=True)
+    # Pastikan database dibuat jika belum ada
+    with app.app_context():
+        db.create_all()
+    app.run(debug=app.config['DEBUG'])

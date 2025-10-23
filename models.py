@@ -67,6 +67,9 @@ class File(db.Model):
     algorithm = db.Column(db.String(20), nullable=False)  # AES, DES, RC4
     mode = db.Column(db.String(20), nullable=False)  # CBC, CTR, CFB, OFB, Stream
     
+    # KUNCI ENKRIPSI DISIMPAN DI SINI (JAUH LEBIH AMAN)
+    key = db.Column(db.LargeBinary, nullable=False)
+
     # Size info
     original_size = db.Column(db.Integer)  # bytes
     encrypted_size = db.Column(db.Integer)  # bytes

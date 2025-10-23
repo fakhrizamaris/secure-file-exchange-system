@@ -1,24 +1,30 @@
+# config.py
+# (Nama file diperbaiki dari conifg.py)
+
 import os
 from datetime import timedelta
 
+# Tentukan base directory proyek
+basedir = os.path.abspath(os.path.dirname(__file__))
+
 class Config:
-    """Konfigurasi aplikasi"""
+    """Konfigurasi aplikasi dasar"""
     
-    # Flask Config
-    SECRET_KEY = os.environ.get('SECRET_KEY') or 'kunci-rahasia-ganti-dengan-random-string-panjang'
+    # Kunci rahasia untuk Flask
+    SECRET_KEY = os.environ.get('SECRET_KEY') or 'kunci-rahasia-yang-sangat-sulit-ditebak-ganti-ini'
     
-    # Database
-    DATABASE_PATH = 'database/secure_files.db'
+    # Konfigurasi Database
+    DATABASE_PATH = os.path.join(basedir, 'database', 'secure_files.db')
     SQLALCHEMY_DATABASE_URI = f'sqlite:///{DATABASE_PATH}'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
-    # Upload Config
-    UPLOAD_FOLDER = 'uploads/encrypted'
-    DECRYPTED_FOLDER = 'uploads/decrypted'
+    # Konfigurasi Upload
+    UPLOAD_FOLDER = os.path.join(basedir, 'uploads', 'encrypted')
+    DECRYPTED_FOLDER = os.path.join(basedir, 'uploads', 'decrypted')
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max
     ALLOWED_EXTENSIONS = {'xlsx', 'xls', 'jpg', 'jpeg', 'png', 'pdf', 'txt', 'doc', 'docx'}
     
-    # Session Config
+    # Konfigurasi Session
     PERMANENT_SESSION_LIFETIME = timedelta(hours=2)
     SESSION_COOKIE_SECURE = False  # Set True jika menggunakan HTTPS
     SESSION_COOKIE_HTTPONLY = True
@@ -26,16 +32,12 @@ class Config:
     
     # Security
     WTF_CSRF_ENABLED = True
-    WTF_CSRF_TIME_LIMIT = None
     
-    # Encryption Config
-    AES_KEY_SIZE = 32  # 256 bits
-    DES_KEY_SIZE = 8   # 64 bits
-    RC4_KEY_SIZE = 16  # 128 bits
-    
-    # Logging
-    LOG_FILE = 'logs/app.log'
-    LOG_LEVEL = 'INFO'
+    # Pastikan folder-folder ada
+    os.makedirs(os.path.join(basedir, 'database'), exist_ok=True)
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+    os.makedirs(DECRYPTED_FOLDER, exist_ok=True)
+
 
 class DevelopmentConfig(Config):
     """Konfigurasi untuk development"""
@@ -47,11 +49,13 @@ class ProductionConfig(Config):
     DEBUG = False
     TESTING = False
     SESSION_COOKIE_SECURE = True
+    WTF_CSRF_ENABLED = True
 
 class TestingConfig(Config):
     """Konfigurasi untuk testing"""
     TESTING = True
-    DATABASE_PATH = 'database/test_secure_files.db'
+    DATABASE_PATH = os.path.join(basedir, 'database', 'test_secure_files.db')
+    SQLALCHEMY_DATABASE_URI = f'sqlite:///{DATABASE_PATH}'
     WTF_CSRF_ENABLED = False
 
 # Pilih konfigurasi berdasarkan environment
