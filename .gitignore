@@ -24,6 +24,9 @@ database/
 # (Folder ini berisi file terenkripsi dan terdekripsi)
 uploads/
 
+data/
+
+
 # Hasil Laporan Test Performa
 # (Dibuat oleh test_performance.py)
 test_results/

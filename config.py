@@ -1,5 +1,4 @@
-# config.py
-# (Nama file diperbaiki dari conifg.py)
+# config.py (Versi Modifikasi untuk Render Disk)
 
 import os
 from datetime import timedelta
@@ -7,20 +6,32 @@ from datetime import timedelta
 # Tentukan base directory proyek
 basedir = os.path.abspath(os.path.dirname(__file__))
 
+# --- PERUBAHAN DI SINI ---
+# Tentukan base path untuk data persisten
+# Ini akan membaca Env Var 'DATA_BASE_PATH' di Render (yang akan kita set ke /app/data)
+# Jika tidak ada, dia akan membuat folder 'data/' di lokal untuk development
+DATA_BASE_PATH = os.environ.get('DATA_BASE_PATH', os.path.join(basedir, 'data'))
+# --- AKHIR PERUBAHAN ---
+
 class Config:
     """Konfigurasi aplikasi dasar"""
     
     # Kunci rahasia untuk Flask
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'kunci-rahasia-yang-sangat-sulit-ditebak-ganti-ini'
     
-    # Konfigurasi Database
-    DATABASE_PATH = os.path.join(basedir, 'database', 'secure_files.db')
+    # --- PERUBAHAN DI SINI ---
+    # Konfigurasi Database (sekarang menunjuk ke dalam DATA_BASE_PATH)
+    DATABASE_DIR = os.path.join(DATA_BASE_PATH, 'database')
+    DATABASE_PATH = os.path.join(DATABASE_DIR, 'secure_files.db')
     SQLALCHEMY_DATABASE_URI = f'sqlite:///{DATABASE_PATH}'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
-    # Konfigurasi Upload
-    UPLOAD_FOLDER = os.path.join(basedir, 'uploads', 'encrypted')
-    DECRYPTED_FOLDER = os.path.join(basedir, 'uploads', 'decrypted')
+    # Konfigurasi Upload (sekarang menunjuk ke dalam DATA_BASE_PATH)
+    UPLOAD_DIR = os.path.join(DATA_BASE_PATH, 'uploads')
+    UPLOAD_FOLDER = os.path.join(UPLOAD_DIR, 'encrypted')
+    DECRYPTED_FOLDER = os.path.join(UPLOAD_DIR, 'decrypted')
+    # --- AKHIR PERUBAHAN ---
+
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max
     ALLOWED_EXTENSIONS = {'xlsx', 'xls', 'jpg', 'jpeg', 'png', 'pdf', 'txt', 'doc', 'docx'}
     
@@ -33,10 +44,12 @@ class Config:
     # Security
     WTF_CSRF_ENABLED = True
     
-    # Pastikan folder-folder ada
-    os.makedirs(os.path.join(basedir, 'database'), exist_ok=True)
+    # --- PERUBAHAN DI SINI ---
+    # Pastikan folder-folder baru ada
+    os.makedirs(DATABASE_DIR, exist_ok=True)
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
     os.makedirs(DECRYPTED_FOLDER, exist_ok=True)
+    # --- AKHIR PERUBAHAN ---
 
 
 class DevelopmentConfig(Config):
