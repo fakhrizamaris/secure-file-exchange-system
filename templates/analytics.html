@@ -12,7 +12,7 @@
     }
     .chart-container {
         position: relative;
-        height: 300px;
+        height: 400px;
     }
 </style>
 {% endblock %}
@@ -105,7 +105,9 @@
         <h4 class="mb-0"><i class="fas fa-chart-line"></i> Visualisasi Performa</h4>
     </div>
     <div class="card-body">
-        <canvas id="performanceChart"></canvas>
+        <div class="chart-container">
+            <canvas id="performanceChart"></canvas>
+        </div>
     </div>
 </div>
 
@@ -125,6 +127,7 @@
                         <li>Performa cepat pada hardware modern</li>
                         <li>Mendukung berbagai mode operasi</li>
                         <li>Cocok untuk data sensitif</li>
+                        <li>Digunakan oleh pemerintah dan militer</li>
                     </ul>
                 </div>
             </div>
@@ -136,6 +139,7 @@
                         <li>Cocok untuk pembelajaran</li>
                         <li>Performa cukup baik untuk file kecil</li>
                         <li>Sudah tidak disarankan untuk produksi</li>
+                        <li>Algoritma klasik yang banyak dipelajari</li>
                     </ul>
                 </div>
             </div>
@@ -146,6 +150,7 @@
                         <li>Sangat cepat (stream cipher)</li>
                         <li>Overhead minimal</li>
                         <li>Cocok untuk enkripsi real-time</li>
+                        <li>Implementasi sederhana</li>
                         <li>Keamanan sudah dianggap lemah</li>
                     </ul>
                 </div>
@@ -161,6 +166,7 @@
                         <li>Membutuhkan resource lebih banyak</li>
                         <li>Ukuran file sedikit lebih besar (padding)</li>
                         <li>Implementasi lebih kompleks</li>
+                        <li>Memerlukan manajemen kunci yang baik</li>
                     </ul>
                 </div>
             </div>
@@ -171,6 +177,7 @@
                         <li>Kunci terlalu pendek (64-bit)</li>
                         <li>Rentan terhadap brute force</li>
                         <li>Tidak aman untuk data sensitif</li>
+                        <li>Sudah dianggap obsolete</li>
                     </ul>
                 </div>
             </div>
@@ -179,3 +186,128 @@
                     <h6 class="text-info"><i class="fas fa-key"></i> RC4</h6>
                     <ul class="small mb-0">
                         <li>Ditemukan berbagai kelemahan</li>
+                        <li>Tidak boleh digunakan untuk SSL/TLS</li>
+                        <li>Rentan terhadap bias statistik</li>
+                        <li>Tidak disarankan untuk aplikasi baru</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <h5><i class="fas fa-lightbulb text-warning"></i> Rekomendasi:</h5>
+        <div class="alert alert-success">
+            <h6><strong>Untuk Aplikasi Produksi:</strong></h6>
+            <ul class="mb-0">
+                <li><strong>Gunakan AES-256 dengan mode CBC atau CTR</strong> untuk keamanan maksimal</li>
+                <li>Implementasikan manajemen kunci yang aman (gunakan Key Derivation Function)</li>
+                <li>Tambahkan authentication (HMAC) untuk mencegah tampering</li>
+                <li>Jangan gunakan DES atau RC4 untuk data sensitif</li>
+            </ul>
+        </div>
+        
+        <div class="alert alert-info">
+            <h6><strong>Perbandingan Mode Operasi:</strong></h6>
+            <ul class="mb-0">
+                <li><strong>CBC (Cipher Block Chaining):</strong> Aman dan umum digunakan, memerlukan padding</li>
+                <li><strong>CTR (Counter):</strong> Dapat diparalelkan, cocok untuk large files</li>
+                <li><strong>CFB (Cipher Feedback):</strong> Mengubah block cipher menjadi stream cipher</li>
+                <li><strong>OFB (Output Feedback):</strong> Error tidak menyebar ke blok lain</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body text-center">
+        <a href="{{ url_for('dashboard') }}" class="btn btn-primary btn-lg">
+            <i class="fas fa-arrow-left"></i> Kembali ke Dashboard
+        </a>
+        <a href="{{ url_for('upload') }}" class="btn btn-success btn-lg">
+            <i class="fas fa-upload"></i> Upload File Baru
+        </a>
+    </div>
+</div>
+
+{% else %}
+<div class="card">
+    <div class="card-body text-center p-5">
+        <i class="fas fa-chart-bar fa-4x text-muted mb-3"></i>
+        <h5 class="text-muted">Belum ada data untuk dianalisis</h5>
+        <p>Upload beberapa file terlebih dahulu untuk melihat analisis performa</p>
+        <a href="{{ url_for('upload') }}" class="btn btn-primary btn-lg mt-3">
+            <i class="fas fa-upload"></i> Upload File Sekarang
+        </a>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{% if stats %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+    // Data untuk chart
+    const algorithms = {{ stats|map(attribute=0)|list|tojson }};
+    const modes = {{ stats|map(attribute=1)|list|tojson }};
+    const encTimes = {{ stats|map(attribute=2)|list|tojson }};
+    const decTimes = {{ stats|map(attribute=3)|list|tojson }};
+    
+    // Gabungkan label
+    const labels = algorithms.map((algo, i) => algo + '-' + modes[i]);
+    
+    // Create chart
+    const ctx = document.getElementById('performanceChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Waktu Enkripsi (ms)',
+                data: encTimes,
+                backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 2
+            }, {
+                label: 'Waktu Dekripsi (ms)',
+                data: decTimes,
+                backgroundColor: 'rgba(255, 99, 132, 0.6)',
+                borderColor: 'rgba(255, 99, 132, 1)',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Perbandingan Waktu Enkripsi & Dekripsi',
+                    font: {
+                        size: 16
+                    }
+                },
+                legend: {
+                    display: true,
+                    position: 'top'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Waktu (ms)'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Algoritma - Mode'
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% endif %}
+{% endblock %}
