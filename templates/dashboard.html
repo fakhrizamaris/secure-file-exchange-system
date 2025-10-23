@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Secure File Exchange{% endblock %}
+
+{% block content %}
+<div class="row mt-4 mb-4">
+    <div class="col-12">
+        <h2 class="text-white mb-4">
+            <i class="fas fa-home"></i> Dashboard - Selamat Datang, {{ current_user.username }}!
+        </h2>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="fas fa-file fa-3x text-primary mb-3"></i>
+                <h3>{{ files|length }}</h3>
+                <p class="text-muted mb-0">Total File</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="fas fa-upload fa-3x text-success mb-3"></i>
+                <h3>Siap Upload</h3>
+                <a href="{{ url_for('upload') }}" class="btn btn-success btn-sm mt-2">
+                    Upload File
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="fas fa-chart-line fa-3x text-info mb-3"></i>
+                <h3>Analisis</h3>
+                <a href="{{ url_for('analytics') }}" class="btn btn-info btn-sm mt-2">
+                    Lihat Statistik
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header bg-primary text-white">
+        <h4 class="mb-0"><i class="fas fa-folder-open"></i> File Saya</h4>
+    </div>
+    <div class="card-body p-0">
+        {% if files %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>#</th>
+                        <th><i class="fas fa-file"></i> Nama File</th>
+                        <th><i class="fas fa-shield-alt"></i> Algoritma</th>
+                        <th><i class="fas fa-cog"></i> Mode</th>
+                        <th><i class="fas fa-weight"></i> Ukuran Asli</th>
+                        <th><i class="fas fa-weight"></i> Ukuran Enkripsi</th>
+                        <th><i class="fas fa-clock"></i> Waktu Enkripsi</th>
+                        <th><i class="fas fa-calendar"></i> Tanggal Upload</th>
+                        <th><i class="fas fa-tools"></i> Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for file in files %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>
+                            <i class="fas fa-file-alt text-primary"></i>
+                            {{ file[1] }}
+                        </td>
+                        <td>
+                            <span class="badge bg-{% if file[2] == 'AES' %}success{% elif file[2] == 'DES' %}warning{% else %}info{% endif %}">
+                                {{ file[2] }}
+                            </span>
+                        </td>
+                        <td><span class="badge bg-secondary">{{ file[3] }}</span></td>
+                        <td>{{ "%.2f"|format(file[4] / 1024) }} KB</td>
+                        <td>{{ "%.2f"|format(file[5] / 1024) }} KB</td>
+                        <td>{{ "%.2f"|format(file[6]) }} ms</td>
+                        <td>{{ file[7][:16] }}</td>
+                        <td>
+                            <a href="{{ url_for('download', file_id=file[0]) }}" 
+                               class="btn btn-sm btn-primary" title="Download & Dekripsi">
+                                <i class="fas fa-download"></i>
+                            </a>
+                            <form method="POST" action="{{ url_for('delete_file', file_id=file[0]) }}" 
+                                  style="display: inline;" 
+                                  onsubmit="return confirm('Yakin ingin menghapus file ini?');">
+                                <button type="submit" class="btn btn-sm btn-danger" title="Hapus">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center p-5">
+            <i class="fas fa-inbox fa-4x text-muted mb-3"></i>
+            <h5 class="text-muted">Belum ada file yang diupload</h5>
+            <a href="{{ url_for('upload') }}" class="btn btn-primary btn-custom mt-3">
+                <i class="fas fa-upload"></i> Upload File Pertama
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% if files %}
+<div class="card mt-4">
+    <div class="card-body">
+        <h5><i class="fas fa-info-circle"></i> Keterangan</h5>
+        <ul class="mb-0">
+            <li><strong>Ukuran Asli:</strong> Ukuran file sebelum dienkripsi</li>
+            <li><strong>Ukuran Enkripsi:</strong> Ukuran file setelah dienkripsi (termasuk IV/Nonce)</li>
+            <li><strong>Waktu Enkripsi:</strong> Waktu yang dibutuhkan untuk mengenkripsi file (dalam milidetik)</li>
+            <li>Klik tombol <i class="fas fa-download text-primary"></i> untuk mendekripsi dan mengunduh file</li>
+            <li>Klik tombol <i class="fas fa-trash text-danger"></i> untuk menghapus file secara permanen</li>
+        </ul>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

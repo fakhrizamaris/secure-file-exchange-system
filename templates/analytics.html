@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% block title %}Analisis Performa - Secure File Exchange{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stat-card {
+        transition: transform 0.3s;
+    }
+    .stat-card:hover {
+        transform: translateY(-5px);
+    }
+    .chart-container {
+        position: relative;
+        height: 300px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row mt-4 mb-4">
+    <div class="col-12">
+        <h2 class="text-white mb-4">
+            <i class="fas fa-chart-bar"></i> Analisis Performa Algoritma Enkripsi
+        </h2>
+    </div>
+</div>
+
+{% if stats %}
+<div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+        <h4 class="mb-0"><i class="fas fa-table"></i> Tabel Perbandingan Performa</h4>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th><i class="fas fa-shield-alt"></i> Algoritma</th>
+                        <th><i class="fas fa-cog"></i> Mode</th>
+                        <th><i class="fas fa-clock"></i> Rata-rata Waktu Enkripsi (ms)</th>
+                        <th><i class="fas fa-clock"></i> Rata-rata Waktu Dekripsi (ms)</th>
+                        <th><i class="fas fa-weight"></i> Rata-rata Ukuran (KB)</th>
+                        <th><i class="fas fa-file"></i> Jumlah File</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for stat in stats %}
+                    <tr>
+                        <td>
+                            <span class="badge bg-{% if stat[0] == 'AES' %}success{% elif stat[0] == 'DES' %}warning{% else %}info{% endif %} fs-6">
+                                {{ stat[0] }}
+                            </span>
+                        </td>
+                        <td><span class="badge bg-secondary">{{ stat[1] }}</span></td>
+                        <td>
+                            <strong>{{ "%.3f"|format(stat[2]) }}</strong> ms
+                        </td>
+                        <td>
+                            {% if stat[3] %}
+                                <strong>{{ "%.3f"|format(stat[3]) }}</strong> ms
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ "%.2f"|format(stat[4] / 1024) }} KB</td>
+                        <td><span class="badge bg-dark">{{ stat[5] }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card stat-card h-100">
+            <div class="card-body">
+                <h5 class="card-title"><i class="fas fa-tachometer-alt text-success"></i> Algoritma Tercepat (Enkripsi)</h5>
+                {% set fastest_enc = stats|sort(attribute=2)|first %}
+                <h2 class="text-success">{{ fastest_enc[0] }} - {{ fastest_enc[1] }}</h2>
+                <p class="mb-0">Waktu: <strong>{{ "%.3f"|format(fastest_enc[2]) }} ms</strong></p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card stat-card h-100">
+            <div class="card-body">
+                <h5 class="card-title"><i class="fas fa-tachometer-alt text-primary"></i> Algoritma Tercepat (Dekripsi)</h5>
+                {% set fastest_dec = stats|selectattr(3)|sort(attribute=3)|first %}
+                {% if fastest_dec %}
+                <h2 class="text-primary">{{ fastest_dec[0] }} - {{ fastest_dec[1] }}</h2>
+                <p class="mb-0">Waktu: <strong>{{ "%.3f"|format(fastest_dec[3]) }} ms</strong></p>
+                {% else %}
+                <p class="text-muted">Belum ada data dekripsi</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header bg-info text-white">
+        <h4 class="mb-0"><i class="fas fa-chart-line"></i> Visualisasi Performa</h4>
+    </div>
+    <div class="card-body">
+        <canvas id="performanceChart"></canvas>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header bg-success text-white">
+        <h4 class="mb-0"><i class="fas fa-file-alt"></i> Analisis & Kesimpulan</h4>
+    </div>
+    <div class="card-body">
+        <h5><i class="fas fa-check-circle text-success"></i> Kelebihan Masing-masing Algoritma:</h5>
+        
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="p-3 bg-light rounded">
+                    <h6 class="text-success"><i class="fas fa-key"></i> AES-256</h6>
+                    <ul class="small mb-0">
+                        <li>Keamanan sangat tinggi (standar industri)</li>
+                        <li>Performa cepat pada hardware modern</li>
+                        <li>Mendukung berbagai mode operasi</li>
+                        <li>Cocok untuk data sensitif</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="p-3 bg-light rounded">
+                    <h6 class="text-warning"><i class="fas fa-key"></i> DES</h6>
+                    <ul class="small mb-0">
+                        <li>Sederhana dan mudah dipahami</li>
+                        <li>Cocok untuk pembelajaran</li>
+                        <li>Performa cukup baik untuk file kecil</li>
+                        <li>Sudah tidak disarankan untuk produksi</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="p-3 bg-light rounded">
+                    <h6 class="text-info"><i class="fas fa-key"></i> RC4</h6>
+                    <ul class="small mb-0">
+                        <li>Sangat cepat (stream cipher)</li>
+                        <li>Overhead minimal</li>
+                        <li>Cocok untuk enkripsi real-time</li>
+                        <li>Keamanan sudah dianggap lemah</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <h5><i class="fas fa-exclamation-triangle text-warning"></i> Kekurangan:</h5>
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="p-3 bg-light rounded">
+                    <h6 class="text-success"><i class="fas fa-key"></i> AES-256</h6>
+                    <ul class="small mb-0">
+                        <li>Membutuhkan resource lebih banyak</li>
+                        <li>Ukuran file sedikit lebih besar (padding)</li>
+                        <li>Implementasi lebih kompleks</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="p-3 bg-light rounded">
+                    <h6 class="text-warning"><i class="fas fa-key"></i> DES</h6>
+                    <ul class="small mb-0">
+                        <li>Kunci terlalu pendek (64-bit)</li>
+                        <li>Rentan terhadap brute force</li>
+                        <li>Tidak aman untuk data sensitif</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="p-3 bg-light rounded">
+                    <h6 class="text-info"><i class="fas fa-key"></i> RC4</h6>
+                    <ul class="small mb-0">
+                        <li>Ditemukan berbagai kelemahan</li>

@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}Register - Secure File Exchange{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center" style="margin-top: 50px;">
+    <div class="col-md-6 col-lg-5">
+        <div class="card">
+            <div class="card-body p-5">
+                <div class="text-center mb-4">
+                    <i class="fas fa-user-plus fa-3x text-primary mb-3"></i>
+                    <h2 class="h3">Buat Akun Baru</h2>
+                    <p class="text-muted">Daftar untuk mulai mengenkripsi file</p>
+                </div>
+                
+                <form method="POST" action="{{ url_for('register') }}">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">
+                            <i class="fas fa-user"></i> Username
+                        </label>
+                        <input type="text" class="form-control" id="username" name="username" 
+                               required minlength="3" placeholder="Minimal 3 karakter">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="password" class="form-label">
+                            <i class="fas fa-lock"></i> Password
+                        </label>
+                        <input type="password" class="form-control" id="password" name="password" 
+                               required minlength="6" placeholder="Minimal 6 karakter">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="confirm_password" class="form-label">
+                            <i class="fas fa-lock"></i> Konfirmasi Password
+                        </label>
+                        <input type="password" class="form-control" id="confirm_password" 
+                               name="confirm_password" required minlength="6" 
+                               placeholder="Ketik ulang password">
+                    </div>
+                    
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-custom btn-lg">
+                            <i class="fas fa-user-plus"></i> Register
+                        </button>
+                    </div>
+                </form>
+                
+                <hr class="my-4">
+                
+                <div class="text-center">
+                    <p class="mb-0">Sudah punya akun? 
+                        <a href="{{ url_for('login') }}" class="text-decoration-none">
+                            Login di sini
+                        </a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.querySelector('form').addEventListener('submit', function(e) {
+        const password = document.getElementById('password').value;
+        const confirmPassword = document.getElementById('confirm_password').value;
+        
+        if (password !== confirmPassword) {
+            e.preventDefault();
+            alert('Password dan konfirmasi password tidak sama!');
+        }
+    });
+</script>
+{% endblock %}
